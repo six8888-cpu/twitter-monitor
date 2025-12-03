@@ -1,0 +1,8 @@
+{
+  "twitter_api_key": "",
+  "telegram_bot_token": "",
+  "telegram_chat_id": "",
+  "monitor_users": [],
+  "check_interval": 60,
+  "is_running": false
+}
