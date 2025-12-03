@@ -10,7 +10,7 @@ import requests
 import json
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import logging
 import traceback
@@ -288,10 +288,28 @@ def check_new_tweets(username):
             last_tweets[key] = tweet_id
             state_changed = True
             
+            # 检查推文是否在2分钟内
+            is_realtime = False
+            created_at = tweet.get("createdAt", "")
+            try:
+                tweet_time = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
+                now = datetime.now(timezone.utc)
+                diff_seconds = (now - tweet_time).total_seconds()
+                if diff_seconds <= 120:  # 2分钟 = 120秒
+                    is_realtime = True
+                    logger.info(f"⚡ 实时推文！发布于 {diff_seconds:.0f} 秒前")
+                else:
+                    logger.info(f"推文发布于 {diff_seconds/60:.1f} 分钟前")
+            except Exception as e:
+                logger.warning(f"解析推文时间失败: {e}")
+            
             type_names = {"original": "原创", "reply": "回复", "retweet": "转发"}
             type_name = type_names.get(tweet_type, tweet_type)
             
             url = tweet.get("url", "")
+            
+            # 实时标签
+            realtime_tag = "⚡ <b>[实时]</b> " if is_realtime else ""
             
             # 根据推文类型构建不同的消息
             if tweet_type == "retweet":
@@ -300,7 +318,7 @@ def check_new_tweets(username):
                 original_author = retweeted.get("author", {}).get("userName", "未知")
                 original_text = retweeted.get("text", tweet.get("text", ""))[:200]
                 
-                message = f"""🔁 <b>新转发</b>
+                message = f"""{realtime_tag}🔁 <b>新转发</b>
 
 <b>用户:</b> {user_name} (@{username})
 <b>转发了:</b> @{original_author} 的推文
@@ -313,7 +331,7 @@ def check_new_tweets(username):
                 reply_to = tweet.get("inReplyToUsername", "")
                 text = tweet.get("text", "")[:200]
                 
-                message = f"""↩️ <b>新回复</b>
+                message = f"""{realtime_tag}↩️ <b>新回复</b>
 
 <b>用户:</b> {user_name} (@{username})
 <b>回复给:</b> @{reply_to}
@@ -325,7 +343,7 @@ def check_new_tweets(username):
                 # 原创推文
                 text = tweet.get("text", "")[:200]
                 
-                message = f"""🐦 <b>新{type_name}推文</b>
+                message = f"""{realtime_tag}🐦 <b>新{type_name}推文</b>
 
 <b>用户:</b> {user_name} (@{username})
 <b>内容:</b> {text}
