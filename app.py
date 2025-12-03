@@ -131,6 +131,43 @@ def get_user_tweets(username, retry=3):
     
     return {"status": "error", "msg": "请求超时"}
 
+def is_chinese(text):
+    """检查文本是否主要是中文"""
+    if not text:
+        return True
+    chinese_count = sum(1 for char in text if '\u4e00' <= char <= '\u9fff')
+    return chinese_count > len(text) * 0.3  # 超过30%是中文就认为是中文
+
+def translate_to_chinese(text, retry=2):
+    """
+    将英文翻译成中文（使用免费的翻译API）
+    """
+    if not text or is_chinese(text):
+        return None  # 不需要翻译
+    
+    for i in range(retry):
+        try:
+            # 使用 Google Translate 免费 API
+            url = "https://translate.googleapis.com/translate_a/single"
+            params = {
+                "client": "gtx",
+                "sl": "auto",  # 自动检测语言
+                "tl": "zh-CN",  # 目标语言：中文
+                "dt": "t",
+                "q": text[:500]  # 限制长度
+            }
+            response = requests.get(url, params=params, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                if result and result[0]:
+                    translated = "".join([item[0] for item in result[0] if item[0]])
+                    return translated
+        except Exception as e:
+            logger.warning(f"翻译失败 (尝试 {i+1}/{retry}): {e}")
+            time.sleep(1)
+    
+    return None
+
 def classify_tweets(tweets, target_username):
     """
     分类推文，只处理目标用户自己发的推文
@@ -313,11 +350,17 @@ def check_new_tweets(username):
                 original_author = retweeted.get("author", {}).get("userName", "未知")
                 original_text = retweeted.get("text", tweet.get("text", ""))[:200]
                 
+                # 翻译（如果是英文）
+                translated = translate_to_chinese(original_text)
+                content_display = original_text
+                if translated:
+                    content_display = f"{original_text}\n\n<b>翻译:</b> {translated}"
+                
                 message = f"""⚡🔁 <b>新转发</b>
 
 <b>用户:</b> {user_name} (@{username})
 <b>转发了:</b> @{original_author} 的推文
-<b>原文:</b> {original_text}
+<b>原文:</b> {content_display}
 <b>链接:</b> {url}
 <b>时间:</b> {tweet.get('createdAt', '')}"""
             
@@ -326,11 +369,17 @@ def check_new_tweets(username):
                 reply_to = tweet.get("inReplyToUsername", "")
                 text = tweet.get("text", "")[:200]
                 
+                # 翻译（如果是英文）
+                translated = translate_to_chinese(text)
+                content_display = text
+                if translated:
+                    content_display = f"{text}\n\n<b>翻译:</b> {translated}"
+                
                 message = f"""⚡↩️ <b>新回复</b>
 
 <b>用户:</b> {user_name} (@{username})
 <b>回复给:</b> @{reply_to}
-<b>内容:</b> {text}
+<b>内容:</b> {content_display}
 <b>链接:</b> {url}
 <b>时间:</b> {tweet.get('createdAt', '')}"""
             
@@ -338,10 +387,16 @@ def check_new_tweets(username):
                 # 原创推文
                 text = tweet.get("text", "")[:200]
                 
+                # 翻译（如果是英文）
+                translated = translate_to_chinese(text)
+                content_display = text
+                if translated:
+                    content_display = f"{text}\n\n<b>翻译:</b> {translated}"
+                
                 message = f"""⚡🐦 <b>新{type_name}推文</b>
 
 <b>用户:</b> {user_name} (@{username})
-<b>内容:</b> {text}
+<b>内容:</b> {content_display}
 <b>链接:</b> {url}
 <b>时间:</b> {tweet.get('createdAt', '')}"""
             
