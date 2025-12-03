@@ -131,13 +131,26 @@ def get_user_tweets(username, retry=3):
     
     return {"status": "error", "msg": "请求超时"}
 
-def classify_tweets(tweets):
-    """分类推文"""
+def classify_tweets(tweets, target_username):
+    """
+    分类推文，只处理目标用户自己发的推文
+    
+    Args:
+        tweets: 推文列表
+        target_username: 目标用户名（只处理这个用户发的推文）
+    """
     original = None
     reply = None
     retweet = None
     
+    target_username_lower = target_username.lower()
+    
     for tweet in tweets:
+        # 只处理目标用户自己发的推文
+        author = tweet.get("author", {}).get("userName", "")
+        if author.lower() != target_username_lower:
+            continue
+        
         if tweet.get("retweeted_tweet"):
             if not retweet:
                 retweet = tweet
@@ -244,8 +257,8 @@ def check_new_tweets(username):
     
     logger.info(f"@{username} 获取到 {len(tweets)} 条推文")
     
-    # 分类推文
-    classified = classify_tweets(tweets)
+    # 分类推文（只处理目标用户自己发的推文）
+    classified = classify_tweets(tweets, username)
     
     # 检查每种类型的新推文
     state_changed = False
@@ -278,10 +291,41 @@ def check_new_tweets(username):
             type_names = {"original": "原创", "reply": "回复", "retweet": "转发"}
             type_name = type_names.get(tweet_type, tweet_type)
             
-            text = tweet.get("text", "")[:200]
             url = tweet.get("url", "")
             
-            message = f"""🐦 <b>新{type_name}推文</b>
+            # 根据推文类型构建不同的消息
+            if tweet_type == "retweet":
+                # 转发推文：显示被转发的原始内容和作者
+                retweeted = tweet.get("retweeted_tweet", {})
+                original_author = retweeted.get("author", {}).get("userName", "未知")
+                original_text = retweeted.get("text", tweet.get("text", ""))[:200]
+                
+                message = f"""🔁 <b>新转发</b>
+
+<b>用户:</b> {user_name} (@{username})
+<b>转发了:</b> @{original_author} 的推文
+<b>原文:</b> {original_text}
+<b>链接:</b> {url}
+<b>时间:</b> {tweet.get('createdAt', '')}"""
+            
+            elif tweet_type == "reply":
+                # 回复推文：显示回复给谁
+                reply_to = tweet.get("inReplyToUsername", "")
+                text = tweet.get("text", "")[:200]
+                
+                message = f"""↩️ <b>新回复</b>
+
+<b>用户:</b> {user_name} (@{username})
+<b>回复给:</b> @{reply_to}
+<b>内容:</b> {text}
+<b>链接:</b> {url}
+<b>时间:</b> {tweet.get('createdAt', '')}"""
+            
+            else:
+                # 原创推文
+                text = tweet.get("text", "")[:200]
+                
+                message = f"""🐦 <b>新{type_name}推文</b>
 
 <b>用户:</b> {user_name} (@{username})
 <b>内容:</b> {text}
@@ -445,7 +489,7 @@ def get_tweets(username):
         return jsonify({"status": "error", "msg": tweets_resp.get("msg", "获取失败")})
     
     tweets = tweets_resp.get("data", {}).get("tweets", [])
-    classified = classify_tweets(tweets)
+    classified = classify_tweets(tweets, username)
     
     # 获取置顶推文
     user_resp = get_user_info(username)
