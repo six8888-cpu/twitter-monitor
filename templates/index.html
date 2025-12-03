@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Twitter 监控系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+        h1 span {
+            color: #1da1f2;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card h2 {
+            margin-bottom: 20px;
+            font-size: 1.2em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 .icon {
+            font-size: 1.5em;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+            font-size: 0.9em;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-size: 14px;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #1da1f2;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #1da1f2;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #0d8ecf;
+        }
+        .btn-success {
+            background: #00c853;
+            color: #fff;
+        }
+        .btn-success:hover {
+            background: #00a844;
+        }
+        .btn-danger {
+            background: #ff4444;
+            color: #fff;
+        }
+        .btn-danger:hover {
+            background: #cc0000;
+        }
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .user-list {
+            margin-top: 15px;
+        }
+        .user-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #333;
+        }
+        .user-name {
+            font-weight: 600;
+        }
+        .user-handle {
+            color: #888;
+            font-size: 0.9em;
+        }
+        .user-followers {
+            color: #888;
+            font-size: 0.8em;
+        }
+        .btn-icon {
+            padding: 8px 12px;
+            font-size: 12px;
+        }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4444;
+        }
+        .status-dot.running {
+            background: #00c853;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .add-user-form {
+            display: flex;
+            gap: 10px;
+        }
+        .add-user-form input {
+            flex: 1;
+        }
+        .tweets-preview {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+        .tweet-item {
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .tweet-item:last-child {
+            border-bottom: none;
+        }
+        .tweet-type {
+            color: #1da1f2;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        .tweet-text {
+            color: #ccc;
+            word-break: break-word;
+        }
+        .tweet-meta {
+            color: #666;
+            font-size: 0.85em;
+            margin-top: 5px;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: #333;
+            color: #fff;
+            border-radius: 10px;
+            display: none;
+            z-index: 1000;
+        }
+        .toast.success {
+            background: #00c853;
+        }
+        .toast.error {
+            background: #ff4444;
+        }
+        .toast.show {
+            display: block;
+            animation: slideIn 0.3s;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        .loading {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🐦 <span>Twitter</span> 监控系统</h1>
+        
+        <!-- 状态栏 -->
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">已停止</span>
+            </div>
+            <div>
+                <button class="btn btn-success" id="startBtn" onclick="startMonitor()">▶ 启动监控</button>
+                <button class="btn btn-danger" id="stopBtn" onclick="stopMonitor()" style="display:none;">⏹ 停止监控</button>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <!-- API 配置 -->
+            <div class="card">
+                <h2><span class="icon">🔑</span> Twitter API 配置</h2>
+                <div class="form-group">
+                    <label>API Key</label>
+                    <input type="text" id="twitterApiKey" placeholder="输入 TwitterAPI.io 的 API Key">
+                </div>
+                <div class="form-group">
+                    <label>检查间隔（秒）</label>
+                    <input type="number" id="checkInterval" value="60" min="10">
+                </div>
+                <button class="btn btn-primary" onclick="saveTwitterConfig()">保存配置</button>
+            </div>
+            
+            <!-- Telegram 配置 -->
+            <div class="card">
+                <h2><span class="icon">📬</span> Telegram 配置</h2>
+                <div class="form-group">
+                    <label>Bot Token</label>
+                    <input type="text" id="telegramToken" placeholder="从 @BotFather 获取">
+                </div>
+                <div class="form-group">
+                    <label>Chat ID</label>
+                    <input type="text" id="telegramChatId" placeholder="你的 Chat ID 或群组 ID">
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="saveTelegramConfig()">保存配置</button>
+                    <button class="btn btn-secondary" onclick="testTelegram()">发送测试</button>
+                </div>
+            </div>
+            
+            <!-- 监控用户 -->
+            <div class="card full-width">
+                <h2><span class="icon">👥</span> 监控用户</h2>
+                <div class="add-user-form">
+                    <input type="text" id="newUsername" placeholder="输入 Twitter 用户名（如 elonmusk）" onkeypress="if(event.key==='Enter')addUser()">
+                    <button class="btn btn-primary" onclick="addUser()">+ 添加用户</button>
+                </div>
+                <div class="user-list" id="userList">
+                    <div class="empty-state">暂无监控用户</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast"></div>
+    
+    <!-- 推文预览弹窗 -->
+    <div id="tweetsModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.8); z-index:100; padding:20px; overflow:auto;">
+        <div style="max-width:600px; margin:50px auto; background:#1a1a2e; border-radius:15px; padding:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h3 id="modalTitle">推文预览</h3>
+                <button class="btn btn-secondary" onclick="closeModal()">✕ 关闭</button>
+            </div>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        // 加载配置
+        async function loadConfig() {
+            try {
+                const res = await fetch('/api/config');
+                const data = await res.json();
+                
+                document.getElementById('twitterApiKey').value = data.twitter_api_key || '';
+                document.getElementById('telegramToken').value = data.telegram_bot_token || '';
+                document.getElementById('telegramChatId').value = data.telegram_chat_id || '';
+                document.getElementById('checkInterval').value = data.check_interval || 60;
+                
+                updateStatus(data.is_running);
+            } catch (e) {
+                showToast('加载配置失败', 'error');
+            }
+        }
+        
+        // 加载用户列表
+        async function loadUsers() {
+            try {
+                const res = await fetch('/api/users');
+                const data = await res.json();
+                renderUsers(data.users || []);
+            } catch (e) {
+                showToast('加载用户失败', 'error');
+            }
+        }
+        
+        // 渲染用户列表
+        function renderUsers(users) {
+            const container = document.getElementById('userList');
+            if (!users.length) {
+                container.innerHTML = '<div class="empty-state">暂无监控用户</div>';
+                return;
+            }
+            
+            container.innerHTML = users.map(username => `
+                <div class="user-item" id="user-${username}">
+                    <div class="user-info">
+                        <img class="user-avatar" src="https://unavatar.io/twitter/${username}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect fill=%22%23333%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23fff%22 font-size=%2240%22>${username[0].toUpperCase()}</text></svg>'">
+                        <div>
+                            <div class="user-name">@${username}</div>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary btn-icon" onclick="viewTweets('${username}')">👁 查看</button>
+                        <button class="btn btn-danger btn-icon" onclick="deleteUser('${username}')">🗑 删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 添加用户
+        async function addUser() {
+            const input = document.getElementById('newUsername');
+            const username = input.value.trim().replace('@', '');
+            if (!username) {
+                showToast('请输入用户名', 'error');
+                return;
+            }
+            
+            input.disabled = true;
+            try {
+                const res = await fetch('/api/users', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username})
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    input.value = '';
+                    showToast(`已添加 @${username}`, 'success');
+                    loadUsers();
+                } else {
+                    showToast(data.msg || '添加失败', 'error');
+                }
+            } catch (e) {
+                showToast('添加失败', 'error');
+            }
+            input.disabled = false;
+        }
+        
+        // 删除用户
+        async function deleteUser(username) {
+            if (!confirm(`确定删除 @${username}？`)) return;
+            
+            try {
+                await fetch(`/api/users/${username}`, {method: 'DELETE'});
+                showToast(`已删除 @${username}`, 'success');
+                loadUsers();
+            } catch (e) {
+                showToast('删除失败', 'error');
+            }
+        }
+        
+        // 查看推文
+        async function viewTweets(username) {
+            document.getElementById('modalTitle').textContent = `@${username} 的最新推文`;
+            document.getElementById('modalContent').innerHTML = '<div class="empty-state">加载中...</div>';
+            document.getElementById('tweetsModal').style.display = 'block';
+            
+            try {
+                const res = await fetch(`/api/user/${username}/tweets`);
+                const data = await res.json();
+                
+                if (data.status !== 'success') {
+                    document.getElementById('modalContent').innerHTML = `<div class="empty-state">${data.msg || '获取失败'}</div>`;
+                    return;
+                }
+                
+                const {original, reply, retweet, pinned_id} = data.data;
+                let html = '';
+                
+                if (pinned_id) {
+                    html += `<div class="tweet-item"><div class="tweet-type">📌 置顶推文</div><div class="tweet-text">ID: ${pinned_id}</div></div>`;
+                }
+                
+                if (original) {
+                    html += `<div class="tweet-item"><div class="tweet-type">💬 最新原创</div><div class="tweet-text">${original.text}</div><div class="tweet-meta">${original.createdAt} · 👍 ${original.likeCount} · 🔁 ${original.retweetCount}</div></div>`;
+                } else {
+                    html += `<div class="tweet-item"><div class="tweet-type">💬 最新原创</div><div class="tweet-text" style="color:#666">无</div></div>`;
+                }
+                
+                if (reply) {
+                    html += `<div class="tweet-item"><div class="tweet-type">↩️ 最新回复</div><div class="tweet-text">${reply.text}</div><div class="tweet-meta">${reply.createdAt}</div></div>`;
+                } else {
+                    html += `<div class="tweet-item"><div class="tweet-type">↩️ 最新回复</div><div class="tweet-text" style="color:#666">无</div></div>`;
+                }
+                
+                if (retweet) {
+                    const rt = retweet.retweeted_tweet || {};
+                    html += `<div class="tweet-item"><div class="tweet-type">🔁 最新转发</div><div class="tweet-text">${rt.text || retweet.text}</div><div class="tweet-meta">${retweet.createdAt}</div></div>`;
+                } else {
+                    html += `<div class="tweet-item"><div class="tweet-type">🔁 最新转发</div><div class="tweet-text" style="color:#666">无</div></div>`;
+                }
+                
+                document.getElementById('modalContent').innerHTML = html;
+            } catch (e) {
+                document.getElementById('modalContent').innerHTML = '<div class="empty-state">获取失败</div>';
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('tweetsModal').style.display = 'none';
+        }
+        
+        // 保存 Twitter 配置
+        async function saveTwitterConfig() {
+            const data = {
+                twitter_api_key: document.getElementById('twitterApiKey').value,
+                check_interval: parseInt(document.getElementById('checkInterval').value) || 60
+            };
+            
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                showToast('Twitter 配置已保存', 'success');
+            } catch (e) {
+                showToast('保存失败', 'error');
+            }
+        }
+        
+        // 保存 Telegram 配置
+        async function saveTelegramConfig() {
+            const data = {
+                telegram_bot_token: document.getElementById('telegramToken').value,
+                telegram_chat_id: document.getElementById('telegramChatId').value
+            };
+            
+            try {
+                await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                showToast('Telegram 配置已保存', 'success');
+            } catch (e) {
+                showToast('保存失败', 'error');
+            }
+        }
+        
+        // 测试 Telegram
+        async function testTelegram() {
+            try {
+                const res = await fetch('/api/telegram/test', {method: 'POST'});
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('测试消息发送成功！', 'success');
+                } else {
+                    showToast(data.msg || '发送失败', 'error');
+                }
+            } catch (e) {
+                showToast('发送失败', 'error');
+            }
+        }
+        
+        // 启动监控
+        async function startMonitor() {
+            try {
+                await fetch('/api/monitor/start', {method: 'POST'});
+                updateStatus(true);
+                showToast('监控已启动', 'success');
+            } catch (e) {
+                showToast('启动失败', 'error');
+            }
+        }
+        
+        // 停止监控
+        async function stopMonitor() {
+            try {
+                await fetch('/api/monitor/stop', {method: 'POST'});
+                updateStatus(false);
+                showToast('监控已停止', 'success');
+            } catch (e) {
+                showToast('停止失败', 'error');
+            }
+        }
+        
+        // 更新状态显示
+        function updateStatus(isRunning) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            
+            if (isRunning) {
+                dot.classList.add('running');
+                text.textContent = '监控中...';
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'inline-block';
+            } else {
+                dot.classList.remove('running');
+                text.textContent = '已停止';
+                startBtn.style.display = 'inline-block';
+                stopBtn.style.display = 'none';
+            }
+        }
+        
+        // 显示提示
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.className = `toast ${type} show`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        // 初始化
+        loadConfig();
+        loadUsers();
+    </script>
+</body>
+</html>
